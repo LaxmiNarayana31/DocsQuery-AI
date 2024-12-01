@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+langchain = "==0.3.8"
+streamlit = "==1.28.0"
+google-generativeai = "==0.8.3"
+tiktoken = "==0.8.0"
+altair = "==5.4.1"
+python-dotenv = "==1.0.1"
+pypdf2 = "==3.0.1"
+langchain-community = "==0.3.8"
+faiss-cpu = "==1.9.0.post1"
+langgraph = "==0.2.53"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
+
+[scripts]
+main = "streamlit run main.py"
