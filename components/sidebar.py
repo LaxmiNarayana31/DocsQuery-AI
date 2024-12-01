@@ -13,7 +13,7 @@ def display_chat_history():
         )
         if (
             user_message
-            == "Hello! I'm an DocsQuery AI Assistant. Ask me anything about your documents."
+            == "Hello! I'm DocuQuery AI Assistant. Ask me anything about your documents."
         ):
             continue
         chat_preview = get_chat_preview(user_message)

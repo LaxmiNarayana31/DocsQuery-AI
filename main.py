@@ -25,7 +25,7 @@ def main():
         st.session_state.chat_history = [
             {
                 "role": "assistant",
-                "content": "Hello! I'm an DocsQuery AI Assistant. Ask me anything about your documents.",
+                "content": "Hello! I'm DocuQuery AI Assistant. Ask me anything about your documents.",
             },
         ]
 
