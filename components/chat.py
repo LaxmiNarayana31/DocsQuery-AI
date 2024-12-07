@@ -1,11 +1,11 @@
 import streamlit as st
-from app.utils.typing_effect import typewriter
+from app.helper.general_helper import typewriter
 
 
 def handle_userinput(user_question):
     if not st.session_state.get("conversation"):
         st.warning("Please upload and process your documents before asking questions.")
-        return  # Exit the function if no documents are uploaded
+        return
 
     print("The question asked by the user is:", user_question)
 
@@ -29,7 +29,7 @@ def handle_userinput(user_question):
         )
 
     with st.chat_message("assistant"):
-        typewriter(bot_response, speed=10)
+        typewriter(bot_response, speed=20)
 
 
 # Function to save the current chat
