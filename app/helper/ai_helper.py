@@ -8,7 +8,7 @@ from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_core.documents import Document
-from app.embedding_models.gemini_embeddings import GoogleGeminiLLM
+from app.helper.gemini_model_helper import GoogleGeminiLLM
 
 
 class AiHelper:
