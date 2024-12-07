@@ -1,6 +1,6 @@
 import streamlit as st
 from app.helper.ai_helper import AiHelper
-from app.embedding_models.gemini_embeddings import GoogleGeminiEmbeddings
+from app.helper.gemini_model_helper import GoogleGeminiEmbeddings
 from components.chat import save_current_chat, get_chat_preview
 
 
@@ -28,27 +28,40 @@ def sidebar():
             "Upload your PDFs here and click on 'Process'",
             accept_multiple_files=True,
         )
+
+        # Check if uploaded files are not in .pdf format
+        invalid_files = []
+        for file in pdf_docs:
+            if file.name.split(".")[-1].lower() != "pdf":
+                invalid_files.append(file.name)
+
+        if invalid_files:
+            st.warning("Please upload pdf files only.")
+
         # Process the PDF documents
         if st.button("Process"):
-            with st.spinner("Processing"):
-                embedding_function = GoogleGeminiEmbeddings()
+            if invalid_files:
+                st.error("Please upload pdf files only.")
+            else:
+                with st.spinner("Processing"):
+                    embedding_function = GoogleGeminiEmbeddings()
 
-                # Check if there is an existing vectorstore
-                if "vectorstore" in st.session_state:
-                    # If vectorstore exists, pass it to AiHelper to add new documents
-                    st.session_state.vectorstore = AiHelper.get_vectorstore(
-                        pdf_docs, embedding_function
-                    )
-                else:
-                    # If no vectorstore exists, create a new one
-                    st.session_state.vectorstore = AiHelper.get_vectorstore(
-                        pdf_docs, embedding_function
-                    )
+                    # Check if there is an existing vectorstore
+                    if "vectorstore" in st.session_state:
+                        # If vectorstore exists, pass it to AiHelper to add new documents
+                        st.session_state.vectorstore = AiHelper.get_vectorstore(
+                            pdf_docs, embedding_function
+                        )
+                    else:
+                        # If no vectorstore exists, create a new one
+                        st.session_state.vectorstore = AiHelper.get_vectorstore(
+                            pdf_docs, embedding_function
+                        )
 
-                st.session_state.conversation = AiHelper.get_conversation_chain(
-                    st.session_state.vectorstore
-                )
-                st.success("Vectorstore created/updated and ready to use.")
+                    st.session_state.conversation = AiHelper.get_conversation_chain(
+                        st.session_state.vectorstore
+                    )
+                    st.success("Vectorstore created/updated and ready to use.")
 
         if st.button("+ New Chat"):
             if st.session_state.current_chat:
