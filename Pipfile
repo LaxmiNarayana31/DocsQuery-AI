@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 langchain = "==0.3.8"
-streamlit = "==1.28.0"
+streamlit = "==1.41.1"
 google-generativeai = "==0.8.3"
 tiktoken = "==0.8.0"
 altair = "==5.4.1"
