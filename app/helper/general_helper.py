@@ -1,11 +1,20 @@
 import time
 import streamlit as st
+from app.utils.exception_handler import handle_exception
 
+def typewriter_effect(text: str, speed: int):
+    try:
+        lines = text.split("\n") 
+        container = st.empty()
+        full_text = ""
 
-def typewriter(text: str, speed: int):
-    tokens = text.split()
-    container = st.empty()
-    for index in range(len(tokens) + 1):
-        curr_full_text = " ".join(tokens[:index])
-        container.markdown(curr_full_text)
-        time.sleep(1 / speed)
+        for line in lines:
+            words = line.split() 
+            for index in range(len(words) + 1):
+                curr_line = " ".join(words[:index])
+                container.markdown(full_text + curr_line)  
+                time.sleep(1 / speed)
+            # Add line break for Markdown
+            full_text += curr_line + "  \n" 
+    except Exception as e:
+        return handle_exception(e)
