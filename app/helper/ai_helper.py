@@ -1,108 +1,106 @@
-import os
-from uuid import uuid4
 from PyPDF2 import PdfReader
-from dotenv import load_dotenv
 from langchain.text_splitter import CharacterTextSplitter
-import google.generativeai as genai
 from langchain_community.vectorstores import FAISS
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
 from langchain_core.documents import Document
-from app.helper.gemini_model_helper import GoogleGeminiLLM
+from app.helper.llm_helper import GoogleGeminiEmbeddings, GoogleGeminiLLM
+from langchain.prompts import PromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain 
+from app.utils.exception_handler import handle_exception
 
 
-class AiHelper:
-    @staticmethod
-    def get_vectorstore(pdf_docs, embedding_function):
-        documents = []
-        for pdf in pdf_docs:
-            pdf_reader = PdfReader(pdf)
-            text = ""
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text
+class AIHelper:
+    temporary_vectorstore = {}
 
-            if text:
-                text_splitter = CharacterTextSplitter(
-                    separator="\n",
-                    chunk_size=1000,
-                    chunk_overlap=200,
-                    length_function=len,
-                )
-                chunks = text_splitter.split_text(text)
+    # Build a vectorstore from uploaded PDFs
+    def build_vectorstore_from_pdfs(pdf_docs):
+        try:
+            documents = []
+        
+            for pdf in pdf_docs:
+                pdf_reader = PdfReader(pdf)
+                text = ""
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text
 
-                pdf_uuid = str(uuid4())
-                pdf_name = pdf.name
-
-                for chunk in chunks:
-                    document = Document(
-                        page_content=chunk,
-                        metadata={"source": pdf_name, "pdf_uuid": pdf_uuid},
+                if text:
+                    text_splitter = CharacterTextSplitter(
+                        separator="\n",
+                        chunk_size=1000,
+                        chunk_overlap=200,
+                        length_function=len
                     )
-                    documents.append(document)
+                    chunks = text_splitter.split_text(text)
 
-        load_dotenv()
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+                    pdf_name = pdf.name
 
-        if not documents:
-            return None
+                    for chunk in chunks:
+                        document = Document(
+                            page_content = chunk,
+                            metadata = {"source": pdf_name}
+                        )
+                        documents.append(document)
+                    
 
-        # Create a vectorstore in memory
-        vectorstore = FAISS.from_documents(documents, embedding_function)
-        return vectorstore
+            # Embed the documents
+            text_embeddings = GoogleGeminiEmbeddings()
+            if text_embeddings is None: return "Error: Could not create embeddings."
 
-    @staticmethod
-    def get_conversation_chain(vectorstore):
-        if vectorstore is None:
-            return None
+            vectorstore = FAISS.from_documents(documents, embedding = text_embeddings)
+            AIHelper.temporary_vectorstore = {'vectorstore': vectorstore}
+            return AIHelper.temporary_vectorstore['vectorstore']
+        except Exception as e:
+            return handle_exception(e)
 
-        memory = ConversationBufferMemory(
-            memory_key="chat_history", return_messages=True, input_key="question"
-        )
 
-        google_gemini_llm = GoogleGeminiLLM()
+    # Create a conversation chain 
+    def initialize_conversation_chain(vectorstore): 
+        try: 
+            if vectorstore is None: 
+                return None 
 
-        retriever = (
-            vectorstore.as_retriever() if hasattr(vectorstore, "as_retriever") else None
-        )
-        if not retriever:
-            return "Error: Could not create retriever."
+            google_gemini_llm = GoogleGeminiLLM() 
 
-        conversation_chain = ConversationalRetrievalChain.from_llm(
-            llm=google_gemini_llm, retriever=retriever, memory=memory
-        )
-        return conversation_chain
+            retriever = (vectorstore.as_retriever() if hasattr(vectorstore, "as_retriever") else None) 
+            if not retriever: 
+                return "Error: Could not create retriever." 
+            
+            prompt_template = """
+            1. You are a helpful assistant.
+            2. Give a clear and concise answer.
+            3. If you don't know the answer, say that you don't know. Don't make up an answer.
+            4. If the question is not related to the context, politely respond that you are tuned to the context.
+            5. If the question is inappropriate, respond with a neutral answer.
 
-    @staticmethod
-    def handle_userinput_without_streamlit(user_question, vectorstore):
-        if vectorstore is None:
-            return "No vectorstore found. Please upload PDFs first."
+            Context:
+            {context}
 
-        conversation_chain = AiHelper.get_conversation_chain(vectorstore)
-        if isinstance(conversation_chain, str):
-            return conversation_chain
+            Question: {input}
 
-        input_dict = {"question": user_question}
-        response = conversation_chain(input_dict)
-        return response.get("answer", "No response generated.")
+            Helpful Answer:
+            """
+            prompt = PromptTemplate.from_template(prompt_template)
+            combine_docs_chain = create_stuff_documents_chain(llm = google_gemini_llm, prompt = prompt) 
+            retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain) 
+            return retrieval_chain 
+        except Exception as e: 
+            return handle_exception(e)
+    
 
-    @staticmethod
-    def list_documents_in_vectorstore(vectorstore):
-        if vectorstore is None:
-            return "No vectorstore found."
+    def getBotResponse(user_query):
+        try:
+            vectorstore = AIHelper.temporary_vectorstore.get('vectorstore', None)
+            if vectorstore is None:
+                return "Vectorstore is not available. Please upload a document first."
 
-        dummy_query = " "
-        documents = vectorstore.similarity_search(dummy_query, k=10)
+            conversation_chain = AIHelper.initialize_conversation_chain(vectorstore)
+            if isinstance(conversation_chain, str):  
+                return conversation_chain
 
-        documents_list = []
-        unique_uuids = set()
-        for document in documents:
-            metadata = document.metadata
-            pdf_uuid = metadata.get("pdf_uuid")
-            if pdf_uuid not in unique_uuids:
-                unique_uuids.add(pdf_uuid)
-                documents_list.append(
-                    {"pdf_name": metadata.get("source"), "pdf_uuid": pdf_uuid}
-                )
-        return documents_list
+            response = conversation_chain.invoke({"input": user_query})
+            bot_response = response.get('answer', 'No response generated.')  
+            return bot_response
+        except Exception as e:
+            return handle_exception(e)
