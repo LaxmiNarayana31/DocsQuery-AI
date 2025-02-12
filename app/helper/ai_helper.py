@@ -89,7 +89,7 @@ class AIHelper:
             return handle_exception(e)
     
 
-    def getBotResponse(user_query):
+    def get_bot_response(user_query):
         try:
             vectorstore = AIHelper.temporary_vectorstore.get('vectorstore', None)
             if vectorstore is None:
