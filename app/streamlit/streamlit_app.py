@@ -17,7 +17,7 @@ def process_user_query(user_question):
         response_placeholder = st.empty()
         response_placeholder.markdown("Generating Response...")
 
-    bot_response = AIHelper.getBotResponse(user_query = user_question)
+    bot_response = AIHelper.get_bot_response(user_query = user_question)
 
     with response_placeholder.container():
         typewriter_effect(bot_response, speed=20)
