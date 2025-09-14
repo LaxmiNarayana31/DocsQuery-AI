@@ -1,10 +1,10 @@
-# DocsQuery AI 🚀
+# DocsQuery AI
 
 **Your intelligent assistant for querying documents.**
 
 DocsQuery AI is a powerful and intuitive application that allows you to have conversations with your documents. Upload your PDFs, and ask questions to get instant, context-aware answers. Powered by Google Gemini, this tool transforms your documents into a searchable knowledge base.
 
-## Key Features ✨
+## Key Features
 
 - **Multiple Document Support**: Upload and query multiple PDF documents at once.
 - **Intelligent Question Answering**: Leverages state-of-the-art language models (Google Gemini) to understand and answer your questions.
@@ -12,7 +12,7 @@ DocsQuery AI is a powerful and intuitive application that allows you to have con
 - **User-Friendly Interface**: A clean and simple interface built with Streamlit for a seamless user experience.
 - **Easy to Set Up**: Get up and running in a few simple steps with Pipenv.
 
-## How It Works 🤖
+## How It Works
 
 The application implements a Retrieval-Augmented Generation (RAG) pipeline:
 
@@ -23,7 +23,7 @@ The application implements a Retrieval-Augmented Generation (RAG) pipeline:
 5.  **Query & Retrieval**: When you ask a question, it's also embedded, and the most similar text chunks are retrieved from the vector store.
 6.  **Response Generation**: The retrieved chunks and your question are passed to the Gemini model, which generates a human-like answer based on the provided context.
 
-## Technology Stack 🛠️
+## Technology Stack
 
 - **Backend**: Python
 - **Frontend**: Streamlit
@@ -33,7 +33,7 @@ The application implements a Retrieval-Augmented Generation (RAG) pipeline:
   - FAISS (for vector storage)
 - **Dependency Management**: Pipenv
 
-## Getting Started 🏁
+## Getting Started
 
 Follow these instructions to set up and run the project on your local machine.
 
@@ -70,7 +70,7 @@ Follow these instructions to set up and run the project on your local machine.
     GOOGLE_API_KEY="YOUR_API_KEY_HERE"
     ```
 
-## Usage 🚀
+## Usage
 
 To start the application, run the following command from the root directory:
 
@@ -86,6 +86,6 @@ Alternatively, you can run:
 streamlit run main.py
 ```
 
-## Contributing 🤝
+## Contributing
 
 Contributions are welcome! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
