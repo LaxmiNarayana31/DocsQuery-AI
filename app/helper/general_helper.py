@@ -1,6 +1,8 @@
 import time
+import traceback
+
 import streamlit as st
-from app.utils.exception_handler import handle_exception
+
 
 def typewriter_effect(text: str, speed: int):
     try:
@@ -17,4 +19,10 @@ def typewriter_effect(text: str, speed: int):
             # Add line break for Markdown
             full_text += curr_line + "  \n" 
     except Exception as e:
-        return handle_exception(e)
+        # Get the traceback as a string
+        traceback_str = traceback.format_exc()
+        print(traceback_str)
+        # Get the line number of the exception
+        line_no = traceback.extract_tb(e.__traceback__)[-1][1]
+        print(f"Exception occurred on line {line_no}")
+        return str(e)
