@@ -1,72 +1,96 @@
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-from app.helper.llm_helper import GoogleGeminiEmbeddings, GoogleGeminiLLM
-from langchain.prompts import PromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain 
-from app.utils.exception_handler import handle_exception
+import traceback
 
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_core.documents import Document
+from langchain.prompts import PromptTemplate
+from langchain_community.vectorstores.faiss import FAISS
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
+
+from app.helper.llm_helper import GeminiLLM, EmbeddingGenerator
+from app.helper.document_helper import DocumentHelper
 
 class AIHelper:
+    """
+    Core AI helper for:
+    1. Building vectorstores from uploaded documents
+    2. Creating a conversation chain
+    3. Getting responses from the bot
+    """
     temporary_vectorstore = {}
 
-    # Build a vectorstore from uploaded PDFs
-    def build_vectorstore_from_pdfs(pdf_docs):
+    # ---------------- Build Vectorstore ----------------
+    @staticmethod
+    def build_vectorstore_from_docs(uploaded_docs):
+        """
+        uploaded_docs: list of files uploaded by user
+        Returns FAISS vectorstore
+        """
         try:
             documents = []
-        
-            for pdf in pdf_docs:
-                pdf_reader = PdfReader(pdf)
-                text = ""
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text
 
-                if text:
-                    text_splitter = CharacterTextSplitter(
-                        separator="\n",
-                        chunk_size=1000,
-                        chunk_overlap=200,
-                        length_function=len
+            for file in uploaded_docs:
+                # Extract text using the new DocumentHelper
+                text = DocumentHelper.extractText(file)
+                if not text:
+                    continue  # skip empty files
+
+                # Split text into chunks
+                text_splitter = CharacterTextSplitter(
+                    separator="\n",
+                    chunk_size=1000,
+                    chunk_overlap=200,
+                    length_function=len
+                )
+                chunks = text_splitter.split_text(text)
+                file_name = file.name
+
+                for chunk in chunks:
+                    doc = Document(
+                        page_content=chunk,
+                        metadata={"source": file_name}
                     )
-                    chunks = text_splitter.split_text(text)
+                    documents.append(doc)
 
-                    pdf_name = pdf.name
+            if not documents:
+                return "No valid text found in uploaded documents."
 
-                    for chunk in chunks:
-                        document = Document(
-                            page_content = chunk,
-                            metadata = {"source": pdf_name}
-                        )
-                        documents.append(document)
-                    
+            # Create embeddings using your helper
+            embeddings = EmbeddingGenerator._get_embedding_model()
+            if embeddings is None:
+                return "Error: Could not create embeddings."
 
-            # Embed the documents
-            text_embeddings = GoogleGeminiEmbeddings()
-            if text_embeddings is None: return "Error: Could not create embeddings."
-
-            vectorstore = FAISS.from_documents(documents, embedding = text_embeddings)
+            # Build FAISS vectorstore
+            vectorstore = FAISS.from_documents(documents, embedding=embeddings)
             AIHelper.temporary_vectorstore = {'vectorstore': vectorstore}
-            return AIHelper.temporary_vectorstore['vectorstore']
+            return vectorstore
         except Exception as e:
-            return handle_exception(e)
+            # Get the traceback as a string
+            traceback_str = traceback.format_exc()
+            print(traceback_str)
+            # Get the line number of the exception
+            line_no = traceback.extract_tb(e.__traceback__)[-1][1]
+            print(f"Exception occurred on line {line_no}")
+            return str(e)
 
+    # ---------------- Initialize Conversation Chain ----------------
+    @staticmethod
+    def initialize_conversation_chain(vectorstore):
+        """
+        vectorstore: FAISS object
+        Returns a retrieval + LLM chain
+        """
+        try:
+            if vectorstore is None:
+                return None
 
-    # Create a conversation chain 
-    def initialize_conversation_chain(vectorstore): 
-        try: 
-            if vectorstore is None: 
-                return None 
+            # Get Gemini LLM client
+            llm = GeminiLLM.get_chat_llm_client()
 
-            google_gemini_llm = GoogleGeminiLLM() 
+            retriever = vectorstore.as_retriever() if hasattr(vectorstore, "as_retriever") else None
+            if not retriever:
+                return "Error: Could not create retriever."
 
-            retriever = (vectorstore.as_retriever() if hasattr(vectorstore, "as_retriever") else None) 
-            if not retriever: 
-                return "Error: Could not create retriever." 
-            
             prompt_template = """
             1. You are a helpful assistant.
             2. Give a clear and concise answer.
@@ -82,25 +106,43 @@ class AIHelper:
             Helpful Answer:
             """
             prompt = PromptTemplate.from_template(prompt_template)
-            combine_docs_chain = create_stuff_documents_chain(llm = google_gemini_llm, prompt = prompt) 
-            retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain) 
-            return retrieval_chain 
-        except Exception as e: 
-            return handle_exception(e)
-    
 
-    def get_bot_response(user_query):
+            combine_docs_chain = create_stuff_documents_chain(llm=llm, prompt=prompt)
+            retrieval_chain = create_retrieval_chain(retriever, combine_docs_chain)
+            return retrieval_chain
+        except Exception as e:
+            # Get the traceback as a string
+            traceback_str = traceback.format_exc()
+            print(traceback_str)
+            # Get the line number of the exception
+            line_no = traceback.extract_tb(e.__traceback__)[-1][1]
+            print(f"Exception occurred on line {line_no}")
+            return str(e)
+
+    # ---------------- Get LLM Response ----------------
+    @staticmethod
+    def get_llm_response(user_query):
+        """
+        Run user query against the current conversation chain
+        """
         try:
             vectorstore = AIHelper.temporary_vectorstore.get('vectorstore', None)
-            if vectorstore is None:
-                return "Vectorstore is not available. Please upload a document first."
 
             conversation_chain = AIHelper.initialize_conversation_chain(vectorstore)
-            if isinstance(conversation_chain, str):  
+            if conversation_chain is None:
+                return "Please re-upload the documents."
+            if isinstance(conversation_chain, str):
                 return conversation_chain
 
             response = conversation_chain.invoke({"input": user_query})
-            bot_response = response.get('answer', 'No response generated.')  
-            return bot_response
+            llm_response = response.get('answer', 'No response generated.')
+            return llm_response
         except Exception as e:
-            return handle_exception(e)
+            # Get the traceback as a string
+            traceback_str = traceback.format_exc()
+            print(traceback_str)
+            # Get the line number of the exception
+            line_no = traceback.extract_tb(e.__traceback__)[-1][1]
+            print(f"Exception occurred on line {line_no}")
+            return str(e)
+        
