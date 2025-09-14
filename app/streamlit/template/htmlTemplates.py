@@ -1,7 +1,7 @@
 css = """
 <style>
 .block-container{
-    padding:3rem 1rem 10rem !important;
+    padding:3rem 1rem 3rem !important;
 }
 .chat-message {
     padding: 0.5rem;
@@ -38,7 +38,7 @@ css = """
     border: 2px solid #fff;
 }
 .chat-message .message {
-    max-width: 85%;
+    max-width: 75%;
     margin-left: 0.5rem;
     margin-right: 0.5rem;
     padding: 0.75rem 1rem;
